@@ -79,8 +79,11 @@
   <div id="hud">
     <div id="health-bar">
       <div id="health-fill"></div>
+      <div id="health-text">100/100 (100%)</div>
     </div>
     <div id="ammo-counter">Ammo: ∞</div>
+    <div id="kill-counter">Kills: 0</div>
+    <div id="pause-indicator" class="pause-indicator">PAUSED</div>
   </div>
   
   <!-- Crosshair -->
@@ -103,6 +106,9 @@
     </p>
     <!-- Temporary test button -->
     <button id="test-menu-btn" style="margin-top: 10px; padding: 5px 10px; background: #4a9eff; color: white; border: none; border-radius: 5px; cursor: pointer;">Test Menu</button>
+    <button id="test-pause-btn" style="margin-top: 10px; margin-left: 10px; padding: 5px 10px; background: #ff6600; color: white; border: none; border-radius: 5px; cursor: pointer;">Test Pause</button>
+    <button id="test-kill-bot-btn" style="margin-top: 10px; margin-left: 10px; padding: 5px 10px; background: #ff0000; color: white; border: none; border-radius: 5px; cursor: pointer;">Force Kill Bot</button>
+    <button id="test-bot-info-btn" style="margin-top: 10px; margin-left: 10px; padding: 5px 10px; background: #00ff00; color: white; border: none; border-radius: 5px; cursor: pointer;">Show Bot Info</button>
   </div>
   
   <!-- Game Menu -->
@@ -114,6 +120,43 @@
         <button id="restart-btn" class="menu-btn">Restart Game</button>
         <button id="exit-btn" class="menu-btn">Exit to Menu</button>
       </div>
+    </div>
+  </div>
+  
+  <!-- Instructions Popup -->
+  <div id="instructions-popup" class="instructions-popup">
+    <div class="instructions-content">
+      <h2>🚀 Welcome to Space Arena Shooter!</h2>
+      <div class="instructions-section">
+        <h3>🎮 Controls:</h3>
+        <ul>
+          <li><strong>WASD</strong> - Move horizontally</li>
+          <li><strong>Q/E</strong> - Move up/down vertically</li>
+          <li><strong>Mouse</strong> - Look around</li>
+          <li><strong>Space/Click</strong> - Shoot</li>
+          <li><strong>Click</strong> - Lock mouse pointer</li>
+          <li><strong>Ctrl</strong> - Open/Close Game Menu</li>
+        </ul>
+      </div>
+      <div class="instructions-section">
+        <h3>🎯 Gameplay:</h3>
+        <ul>
+          <li><strong>Kill bots</strong> to regenerate 50% health</li>
+          <li><strong>Bots respawn</strong> after 5 seconds</li>
+          <li><strong>Avoid bot collisions</strong> - they damage you</li>
+          <li><strong>Use asteroids</strong> as cover</li>
+        </ul>
+      </div>
+      <div class="instructions-section">
+        <h3>💡 Tips:</h3>
+        <ul>
+          <li>Hunter bots (red) will chase and shoot you</li>
+          <li>Evader bots (green) will run away</li>
+          <li>Patrol bots (yellow) follow set paths</li>
+          <li>Keep moving to avoid being surrounded</li>
+        </ul>
+      </div>
+      <button id="start-playing-btn" class="start-playing-btn">Start Playing!</button>
     </div>
   </div>
   

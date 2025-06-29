@@ -22,6 +22,7 @@ class SpaceArena {
         this.playerHealth = 100;
         this.playerMaxHealth = 100;
         this.playerVelocity = null;
+        this.kills = 0; // Track kills for health regeneration
         
         // Controls
         this.keys = { w: false, a: false, s: false, d: false, q: false, e: false, space: false };
@@ -35,6 +36,23 @@ class SpaceArena {
         this.shootCooldown = 300;
         this.lastShotTime = 0;
         this.raycaster = new THREE.Raycaster();
+        
+        // Continuous firing
+        this.isShooting = false;
+        this.shootInterval = null;
+        this.rapidFireCooldown = 200; // Faster firing for continuous mode
+        
+        // Bot respawning
+        this.botRespawnTime = 3000; // 3 seconds (was 5 seconds)
+        this.deadBots = []; // Track dead bots for respawning
+        
+        // Game pause system
+        this.isGamePaused = false;
+        
+        // Game start delay system
+        this.gameStartTime = null;
+        this.botDelayTime = 5000; // 5 seconds delay before bots become aggressive
+        this.botsAreActive = false;
         
         // Loading
         this.loadingManager = new THREE.LoadingManager();
@@ -155,12 +173,22 @@ class SpaceArena {
         this.setupControls();
         this.setupWebSocket();
         this.setupGameMenu();
+        this.setupInstructionsPopup();
         this.animate();
         
         // Hide loading screen after initialization is complete
         setTimeout(() => {
             this.hideLoadingScreen();
             console.log('Game initialization complete');
+            
+            // Set game start time
+            this.gameStartTime = Date.now();
+            console.log('Game start time set:', this.gameStartTime);
+            
+            // Show instructions popup after a short delay
+            setTimeout(() => {
+                this.showInstructionsPopup();
+            }, 500);
         }, 1000);
     }
     
@@ -287,7 +315,7 @@ class SpaceArena {
         this.createAsteroids(15);
         
         // Create AI bots
-        this.createBots(3);
+        this.createBots(5);
         
         // Create player spaceship
         this.createPlayerSpaceship();
@@ -458,7 +486,7 @@ class SpaceArena {
                 case 'KeyE': this.keys.e = true; break;
                 case 'Space': 
                     this.keys.space = true;
-                    this.shoot();
+                    this.startContinuousFiring();
                     break;
                 case 'ControlLeft':
                 case 'ControlRight':
@@ -484,7 +512,10 @@ class SpaceArena {
                 case 'KeyD': this.keys.d = false; break;
                 case 'KeyQ': this.keys.q = false; break;
                 case 'KeyE': this.keys.e = false; break;
-                case 'Space': this.keys.space = false; break;
+                case 'Space': 
+                    this.keys.space = false; 
+                    this.stopContinuousFiring();
+                    break;
             }
         });
         
@@ -498,9 +529,22 @@ class SpaceArena {
             }
         });
         
-        // Mouse click for shooting
+        // Mouse controls for continuous firing
+        document.addEventListener('mousedown', (event) => {
+            if (this.isPointerLocked && event.button === 0) { // Left mouse button
+                this.startContinuousFiring();
+            }
+        });
+        
+        document.addEventListener('mouseup', (event) => {
+            if (event.button === 0) { // Left mouse button
+                this.stopContinuousFiring();
+            }
+        });
+        
+        // Keep the original click event for single shots
         document.addEventListener('click', (event) => {
-            if (this.isPointerLocked) {
+            if (this.isPointerLocked && !this.isShooting) {
                 this.shoot();
             }
         });
@@ -526,6 +570,39 @@ class SpaceArena {
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(window.innerWidth, window.innerHeight);
         });
+        
+        // Test buttons
+        const testMenuBtn = document.getElementById('test-menu-btn');
+        if (testMenuBtn) {
+            testMenuBtn.addEventListener('click', () => {
+                console.log('Test menu button clicked');
+                this.showGameMenu();
+            });
+        }
+        
+        const testPauseBtn = document.getElementById('test-pause-btn');
+        if (testPauseBtn) {
+            testPauseBtn.addEventListener('click', () => {
+                console.log('Test pause button clicked');
+                this.togglePause();
+            });
+        }
+        
+        const testKillBotBtn = document.getElementById('test-kill-bot-btn');
+        if (testKillBotBtn) {
+            testKillBotBtn.addEventListener('click', () => {
+                console.log('Test kill bot button clicked');
+                this.forceKillBot();
+            });
+        }
+        
+        const testBotInfoBtn = document.getElementById('test-bot-info-btn');
+        if (testBotInfoBtn) {
+            testBotInfoBtn.addEventListener('click', () => {
+                console.log('Test bot info button clicked');
+                this.showBotInfo();
+            });
+        }
     }
     
     setupWebSocket() {
@@ -596,10 +673,12 @@ class SpaceArena {
     }
     
     shoot() {
-        if (!this.canShoot || !this.socket) return;
+        if (!this.canShoot) return;
         
         const currentTime = Date.now();
-        if (currentTime - this.lastShotTime < this.shootCooldown) return;
+        const cooldown = this.isShooting ? this.rapidFireCooldown : this.shootCooldown;
+        
+        if (currentTime - this.lastShotTime < cooldown) return;
         
         this.lastShotTime = currentTime;
         
@@ -622,23 +701,75 @@ class SpaceArena {
         rayDirection.unproject(this.camera);
         rayDirection.sub(this.camera.position).normalize();
         
-        // Send shoot event
-        this.socket.emit('shoot', {
-            origin: { x: rayOrigin.x, y: rayOrigin.y, z: rayOrigin.z },
-            direction: { x: rayDirection.x, y: rayDirection.y, z: rayDirection.z },
-            player_position: {
-                x: this.player.position.x,
-                y: this.player.position.y,
-                z: this.player.position.z
+        // Check for bot hits with improved detection
+        let hitBot = null;
+        let hitDistance = 150;
+        
+        console.log('Checking for bot hits. Total bots:', this.bots.length);
+        
+        this.bots.forEach((bot, index) => {
+            if (bot.userData && bot.userData.health > 0) {
+                console.log(`Checking bot ${index}, health: ${bot.userData.health}, position:`, bot.position);
+                
+                // Calculate distance from camera to bot
+                const distanceToBot = this.camera.position.distanceTo(bot.position);
+                console.log(`Distance to bot ${index}: ${distanceToBot}`);
+                
+                // Method 1: Sphere intersection (original)
+                const botSphere = new THREE.Sphere(bot.position, 5); // Increased radius to 5
+                const ray = new THREE.Ray(rayOrigin, rayDirection);
+                const intersection = ray.intersectSphere(botSphere);
+                
+                if (intersection && intersection.distance < hitDistance) {
+                    console.log(`Bot ${index} hit by sphere intersection at distance: ${intersection.distance}`);
+                    hitDistance = intersection.distance;
+                    hitBot = bot;
+                }
+                
+                // Method 2: Distance-based hit detection (backup)
+                const rayEndPoint = rayOrigin.clone().add(rayDirection.clone().multiplyScalar(100));
+                const rayDirectionNormalized = rayDirection.clone().normalize();
+                
+                // Calculate closest point on ray to bot
+                const t = bot.position.clone().sub(rayOrigin).dot(rayDirectionNormalized);
+                const closestPointOnRay = rayOrigin.clone().add(rayDirectionNormalized.clone().multiplyScalar(t));
+                
+                const distanceFromRayToBot = closestPointOnRay.distanceTo(bot.position);
+                console.log(`Distance from ray to bot ${index}: ${distanceFromRayToBot}`);
+                
+                if (distanceFromRayToBot < 8 && distanceToBot < 100 && !hitBot) { // Within 8 units of ray and 100 units away
+                    console.log(`Bot ${index} hit by distance detection!`);
+                    hitDistance = distanceToBot;
+                    hitBot = bot;
+                }
             }
         });
         
-        // Create local shot effect
+        // Send shoot event (only if socket exists)
+        if (this.socket) {
+            this.socket.emit('shoot', {
+                origin: { x: rayOrigin.x, y: rayOrigin.y, z: rayOrigin.z },
+                direction: { x: rayDirection.x, y: rayDirection.y, z: rayDirection.z },
+                player_position: {
+                    x: this.player.position.x,
+                    y: this.player.position.y,
+                    z: this.player.position.z
+                }
+            });
+        }
+        
+        // Create local shot effect with hit detection
         this.createShotEffect(
             { x: rayOrigin.x, y: rayOrigin.y, z: rayOrigin.z },
             { x: rayDirection.x, y: rayDirection.y, z: rayDirection.z },
-            { hit: false }
+            { hit: !!hitBot, distance: hitDistance }
         );
+        
+        // Handle bot hit
+        if (hitBot) {
+            console.log('Killing bot!');
+            this.killBot(hitBot);
+        }
         
         // Update ammo counter (if it exists)
         const ammoCounter = document.getElementById('ammo-counter');
@@ -943,6 +1074,46 @@ class SpaceArena {
     }
     
     updateBots() {
+        // Don't update bots if game is paused
+        if (this.isGamePaused) {
+            console.log('Game is paused, bots not updating');
+            return;
+        }
+        
+        // Don't allow bots to attack if they're not active yet
+        if (!this.botsAreActive) {
+            console.log('Bots not active yet, only basic movement allowed');
+            // Allow basic movement but no attacking
+            this.bots.forEach(bot => {
+                if (!bot.userData) return;
+                
+                const botData = bot.userData;
+                
+                // Only basic patrol movement, no hunting or shooting
+                if (botData.behavior === 'patrol') {
+                    const targetPoint = botData.patrolPoints[botData.currentPatrolIndex];
+                    const direction = new THREE.Vector3().subVectors(targetPoint, bot.position);
+                    
+                    if (direction.length() < 10) {
+                        botData.currentPatrolIndex = (botData.currentPatrolIndex + 1) % botData.patrolPoints.length;
+                    } else {
+                        direction.normalize();
+                        botData.velocity.add(direction.multiplyScalar(0.01)); // Slower movement
+                    }
+                }
+                
+                // Apply velocity to position
+                bot.position.add(botData.velocity);
+                
+                // Apply friction
+                botData.velocity.multiplyScalar(0.95);
+                
+                // Keep bots within bounds
+                this.keepBotInBounds(bot);
+            });
+            return;
+        }
+        
         this.bots.forEach(bot => {
             if (!bot.userData) return;
             
@@ -982,39 +1153,57 @@ class SpaceArena {
     }
     
     updatePatrolBot(bot, botData, currentTime) {
-        // Move between patrol points
-        const targetPoint = botData.patrolPoints[botData.currentPatrolIndex];
-        const direction = new THREE.Vector3().subVectors(targetPoint, bot.position);
+        if (!this.player) return;
         
-        if (direction.length() < 10) {
-            // Move to next patrol point
-            botData.currentPatrolIndex = (botData.currentPatrolIndex + 1) % botData.patrolPoints.length;
+        // Check if player is nearby - if so, hunt them!
+        const playerDirection = new THREE.Vector3().subVectors(this.player.position, bot.position);
+        const playerDistance = playerDirection.length();
+        
+        if (playerDistance < 40) {
+            // Player is nearby - switch to hunting mode!
+            playerDirection.normalize();
+            botData.velocity.add(playerDirection.multiplyScalar(0.04));
+            
+            // Shoot at player if in range
+            if (playerDistance < 25 && currentTime - botData.lastShotTime > botData.shootCooldown) {
+                this.botShoot(bot, this.player.position);
+                botData.lastShotTime = currentTime;
+            }
         } else {
-            // Move towards current patrol point
-            direction.normalize();
-            botData.velocity.add(direction.multiplyScalar(0.02));
+            // Normal patrol behavior when player is far
+            const targetPoint = botData.patrolPoints[botData.currentPatrolIndex];
+            const direction = new THREE.Vector3().subVectors(targetPoint, bot.position);
+            
+            if (direction.length() < 10) {
+                // Move to next patrol point
+                botData.currentPatrolIndex = (botData.currentPatrolIndex + 1) % botData.patrolPoints.length;
+            } else {
+                // Move towards current patrol point
+                direction.normalize();
+                botData.velocity.add(direction.multiplyScalar(0.02));
+            }
         }
         
         // Limit speed
-        if (botData.velocity.length() > 0.5) {
-            botData.velocity.normalize().multiplyScalar(0.5);
+        if (botData.velocity.length() > 0.7) {
+            botData.velocity.normalize().multiplyScalar(0.7);
         }
     }
     
     updateHunterBot(bot, botData, currentTime) {
         if (!this.player) return;
         
-        // Hunt the player
+        // Hunt the player aggressively
         const direction = new THREE.Vector3().subVectors(this.player.position, bot.position);
         const distance = direction.length();
         
-        if (distance < 50) {
+        if (distance < 80) { // Increased range
             // Move towards player
             direction.normalize();
-            botData.velocity.add(direction.multiplyScalar(0.03));
+            botData.velocity.add(direction.multiplyScalar(0.05)); // Faster movement
             
             // Shoot at player if in range
-            if (distance < 30 && currentTime - botData.lastShotTime > botData.shootCooldown) {
+            if (distance < 50 && currentTime - botData.lastShotTime > botData.shootCooldown) { // Increased shooting range
                 this.botShoot(bot, this.player.position);
                 botData.lastShotTime = currentTime;
             }
@@ -1032,15 +1221,15 @@ class SpaceArena {
         }
         
         // Limit speed
-        if (botData.velocity.length() > 0.8) {
-            botData.velocity.normalize().multiplyScalar(0.8);
+        if (botData.velocity.length() > 1.0) { // Increased max speed
+            botData.velocity.normalize().multiplyScalar(1.0);
         }
     }
     
     updateEvaderBot(bot, botData, currentTime) {
         if (!this.player) return;
         
-        // Evade the player
+        // Evade the player but also shoot at them
         const direction = new THREE.Vector3().subVectors(bot.position, this.player.position);
         const distance = direction.length();
         
@@ -1048,6 +1237,12 @@ class SpaceArena {
             // Move away from player
             direction.normalize();
             botData.velocity.add(direction.multiplyScalar(0.04));
+            
+            // Shoot at player while evading (dangerous!)
+            if (distance < 35 && currentTime - botData.lastShotTime > botData.shootCooldown) {
+                this.botShoot(bot, this.player.position);
+                botData.lastShotTime = currentTime;
+            }
         } else {
             // Wander around if player is far
             if (currentTime - botData.lastDirectionChange > botData.directionChangeInterval) {
@@ -1082,7 +1277,17 @@ class SpaceArena {
         if (this.player) {
             const distance = this.player.position.distanceTo(shotOrigin);
             if (distance < 30) {
-                this.takeDamage(15);
+                // Increased damage based on bot type
+                let damage = 20; // Base damage
+                if (bot.userData.behavior === 'hunter') {
+                    damage = 25; // Hunters do more damage
+                } else if (bot.userData.behavior === 'patrol') {
+                    damage = 18; // Patrol bots do medium damage
+                } else if (bot.userData.behavior === 'evader') {
+                    damage = 15; // Evaders do less damage but still dangerous
+                }
+                this.takeDamage(damage);
+                console.log(`Bot hit player for ${damage} damage!`);
             }
         }
     }
@@ -1114,8 +1319,157 @@ class SpaceArena {
         }
     }
     
+    killBot(bot) {
+        if (!bot.userData || bot.userData.health <= 0) return;
+        
+        console.log('Bot killed!');
+        
+        // Mark bot as dead
+        bot.userData.health = 0;
+        bot.userData.deathTime = Date.now();
+        
+        // Add to dead bots list for respawning
+        this.deadBots.push(bot);
+        
+        // Remove bot from active bots list
+        const botIndex = this.bots.indexOf(bot);
+        if (botIndex > -1) {
+            this.bots.splice(botIndex, 1);
+        }
+        
+        // Hide the bot (make it invisible)
+        bot.visible = false;
+        
+        // Create explosion effect at bot position
+        this.createHitEffect({
+            x: bot.position.x,
+            y: bot.position.y,
+            z: bot.position.z
+        });
+        
+        // Increment kill counter
+        this.kills++;
+        
+        // Regenerate player health (50% of max health)
+        const healthRegen = Math.floor(this.playerMaxHealth * 0.5);
+        this.playerHealth = Math.min(this.playerMaxHealth, this.playerHealth + healthRegen);
+        this.updateHealthDisplay();
+        
+        // Show health regeneration effect
+        this.showHealthRegenEffect(healthRegen);
+        
+        // Update kill counter display
+        this.updateKillDisplay();
+    }
+    
+    showHealthRegenEffect(amount) {
+        // Create floating text effect for health regeneration
+        const regenText = document.createElement('div');
+        regenText.textContent = `+${amount} HP`;
+        regenText.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ff00;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+            z-index: 1000;
+            animation: healthRegen 2s ease-out forwards;
+        `;
+        
+        // Add CSS animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes healthRegen {
+                0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+                100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        document.body.appendChild(regenText);
+        
+        // Remove after animation
+        setTimeout(() => {
+            document.body.removeChild(regenText);
+        }, 2000);
+    }
+    
+    updateKillDisplay() {
+        const killCounter = document.getElementById('kill-counter');
+        if (killCounter) {
+            killCounter.textContent = `Kills: ${this.kills}`;
+        }
+    }
+    
+    updatePauseIndicator() {
+        const pauseIndicator = document.getElementById('pause-indicator');
+        if (pauseIndicator) {
+            if (this.isGamePaused) {
+                pauseIndicator.style.display = 'block';
+                pauseIndicator.textContent = 'PAUSED';
+                pauseIndicator.style.color = '#ffff00';
+            } else if (!this.botsAreActive) {
+                pauseIndicator.style.display = 'block';
+                pauseIndicator.textContent = 'BOTS INACTIVE';
+                pauseIndicator.style.color = '#00ff00';
+            } else {
+                pauseIndicator.style.display = 'none';
+            }
+        }
+    }
+    
+    respawnBots() {
+        // Don't respawn bots if game is paused
+        if (this.isGamePaused) return;
+        
+        const currentTime = Date.now();
+        
+        // Check for bots that need respawning
+        for (let i = this.deadBots.length - 1; i >= 0; i--) {
+            const bot = this.deadBots[i];
+            if (currentTime - bot.userData.deathTime >= this.botRespawnTime) {
+                // Respawn the bot
+                this.respawnBot(bot);
+                this.deadBots.splice(i, 1);
+            }
+        }
+    }
+    
+    respawnBot(bot) {
+        // Reset bot health
+        bot.userData.health = bot.userData.maxHealth;
+        
+        // Random new position (away from player)
+        let newPosition;
+        do {
+            newPosition = new THREE.Vector3(
+                (Math.random() - 0.5) * 150,
+                (Math.random() - 0.5) * 150,
+                (Math.random() - 0.5) * 150
+            );
+        } while (this.player && newPosition.distanceTo(this.player.position) < 30);
+        
+        bot.position.copy(newPosition);
+        bot.userData.velocity.set(0, 0, 0);
+        
+        // Make bot visible again
+        bot.visible = true;
+        
+        // Add back to active bots
+        this.bots.push(bot);
+        
+        console.log('Bot respawned!');
+    }
+    
     updateHealthDisplay() {
         const healthFill = document.getElementById('health-fill');
+        const healthText = document.getElementById('health-text');
+        
         if (healthFill) {
             const healthPercent = (this.playerHealth / this.playerMaxHealth) * 100;
             healthFill.style.width = `${healthPercent}%`;
@@ -1128,6 +1482,10 @@ class SpaceArena {
             } else {
                 healthFill.style.background = 'linear-gradient(90deg, #ff0000, #ff2222)';
             }
+        }
+        
+        if (healthText) {
+            healthText.textContent = `${this.playerHealth}/${this.playerMaxHealth} (${Math.round((this.playerHealth / this.playerMaxHealth) * 100)}%)`;
         }
     }
     
@@ -1162,11 +1520,17 @@ class SpaceArena {
     animate() {
         requestAnimationFrame(() => this.animate());
         
+        // Debug pause state
+        if (this.isGamePaused) {
+            console.log('Game is paused, skipping updates');
+        }
+        
         this.updatePlayerMovement();
         this.updateCamera();
         this.updateEngineEffect();
         this.updateAsteroids();
         this.updateBots();
+        this.respawnBots();
         
         this.renderer.render(this.scene, this.camera);
     }
@@ -1236,7 +1600,9 @@ class SpaceArena {
         if (menu) {
             menu.classList.add('show');
             this.isMenuOpen = true;
-            console.log('Menu shown, isMenuOpen:', this.isMenuOpen);
+            this.isGamePaused = true; // Pause the game
+            this.updatePauseIndicator(); // Update pause indicator
+            console.log('Menu shown, isMenuOpen:', this.isMenuOpen, 'Game paused:', this.isGamePaused);
             
             // Exit pointer lock when menu is open
             if (this.isPointerLocked) {
@@ -1254,7 +1620,9 @@ class SpaceArena {
         if (menu) {
             menu.classList.remove('show');
             this.isMenuOpen = false;
-            console.log('Menu hidden, isMenuOpen:', this.isMenuOpen);
+            this.isGamePaused = false; // Unpause the game
+            this.updatePauseIndicator(); // Update pause indicator
+            console.log('Menu hidden, isMenuOpen:', this.isMenuOpen, 'Game paused:', this.isGamePaused);
         } else {
             console.error('Game menu element not found!');
         }
@@ -1287,15 +1655,27 @@ class SpaceArena {
         this.asteroids = [];
         this.otherPlayers = {};
         this.bots = []; // Clear bots
+        this.deadBots = []; // Clear dead bots
+        this.kills = 0; // Reset kills
         this.keys = { w: false, a: false, s: false, d: false, q: false, e: false, space: false };
         this.mouseX = 0;
         this.mouseY = 0;
         this.isPointerLocked = false;
         this.isMenuOpen = false;
+        this.isGamePaused = false; // Reset pause state
+        this.botsAreActive = false; // Reset bot activation state
+        this.gameStartTime = null; // Reset game start time
+        this.isShooting = false; // Reset continuous firing state
+        this.shootInterval = null; // Clear firing interval
         this.canShoot = true;
         this.lastShotTime = 0;
         this.playerHealth = 100; // Reset health
         this.playerVelocity = null; // Reset velocity
+        
+        // Update displays
+        this.updateHealthDisplay();
+        this.updateKillDisplay();
+        this.updatePauseIndicator(); // Update pause indicator
     }
     
     handleFullscreenChange() {
@@ -1307,9 +1687,10 @@ class SpaceArena {
         }, 100);
     }
     
-    createBots(count = 3) {
+    createBots(count = 5) {
+        console.log(`Creating ${count} dangerous bots...`);
         const botColors = [0xff0000, 0x00ff00, 0x0000ff, 0xff00ff, 0xffff00];
-        const botBehaviors = ['patrol', 'hunter', 'evader'];
+        const botBehaviors = ['patrol', 'hunter', 'evader', 'hunter', 'patrol']; // More hunters
         
         for (let i = 0; i < count; i++) {
             const bot = this.createBotSpaceship(
@@ -1324,7 +1705,7 @@ class SpaceArena {
                 (Math.random() - 0.5) * 100
             );
             
-            // Bot properties
+            // Bot properties with faster shooting
             bot.userData = {
                 type: 'bot',
                 id: `bot_${i}`,
@@ -1334,7 +1715,7 @@ class SpaceArena {
                 target: null,
                 velocity: new THREE.Vector3(),
                 lastShotTime: 0,
-                shootCooldown: 1000 + Math.random() * 1000,
+                shootCooldown: 500 + Math.random() * 500, // Faster shooting (was 1000-2000)
                 patrolPoints: this.generatePatrolPoints(),
                 currentPatrolIndex: 0,
                 lastDirectionChange: 0,
@@ -1343,7 +1724,9 @@ class SpaceArena {
             
             this.scene.add(bot);
             this.bots.push(bot);
+            console.log(`Dangerous bot ${i} created at position:`, bot.position, 'with behavior:', bot.userData.behavior);
         }
+        console.log(`Total dangerous bots created: ${this.bots.length}`);
     }
     
     createBotSpaceship(color, behavior) {
@@ -1389,6 +1772,170 @@ class SpaceArena {
             ));
         }
         return points;
+    }
+    
+    setupInstructionsPopup() {
+        const startPlayingBtn = document.getElementById('start-playing-btn');
+        if (startPlayingBtn) {
+            startPlayingBtn.addEventListener('click', () => {
+                this.hideInstructionsPopup();
+            });
+        }
+    }
+    
+    showInstructionsPopup() {
+        const popup = document.getElementById('instructions-popup');
+        if (popup) {
+            popup.style.display = 'flex';
+            this.isGamePaused = true; // Pause the game
+            this.updatePauseIndicator(); // Update pause indicator
+            console.log('Instructions popup shown, Game paused:', this.isGamePaused);
+        }
+    }
+    
+    hideInstructionsPopup() {
+        const popup = document.getElementById('instructions-popup');
+        if (popup) {
+            popup.style.display = 'none';
+            this.isGamePaused = false; // Unpause the game
+            this.updatePauseIndicator(); // Update pause indicator
+            
+            // Start the bot delay timer
+            this.gameStartTime = Date.now();
+            this.botsAreActive = false;
+            console.log('Instructions popup hidden, bot delay started. Bots will become active in 5 seconds.');
+            
+            // Show countdown message
+            this.showCountdownMessage();
+        }
+    }
+    
+    // Debug method to force pause/unpause
+    togglePause() {
+        this.isGamePaused = !this.isGamePaused;
+        this.updatePauseIndicator();
+        console.log('Game pause toggled:', this.isGamePaused);
+    }
+    
+    // Debug method to force pause
+    forcePause() {
+        this.isGamePaused = true;
+        this.updatePauseIndicator();
+        console.log('Game force paused');
+    }
+    
+    // Debug method to force unpause
+    forceUnpause() {
+        this.isGamePaused = false;
+        this.updatePauseIndicator();
+        console.log('Game force unpaused');
+    }
+    
+    // Debug method to force kill a bot
+    forceKillBot() {
+        if (this.bots.length > 0) {
+            const botToKill = this.bots[0];
+            console.log('Force killing bot:', botToKill);
+            this.killBot(botToKill);
+        } else {
+            console.log('No bots to kill!');
+        }
+    }
+    
+    // Debug method to show bot info
+    showBotInfo() {
+        console.log('=== BOT INFO ===');
+        console.log('Total bots:', this.bots.length);
+        console.log('Dead bots:', this.deadBots.length);
+        this.bots.forEach((bot, index) => {
+            console.log(`Bot ${index}:`, {
+                health: bot.userData?.health,
+                behavior: bot.userData?.behavior,
+                position: bot.position,
+                visible: bot.visible
+            });
+        });
+    }
+    
+    showCountdownMessage() {
+        const countdownDiv = document.createElement('div');
+        countdownDiv.id = 'countdown-message';
+        countdownDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffff00;
+            font-size: 32px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+            z-index: 1000;
+            text-align: center;
+        `;
+        
+        document.body.appendChild(countdownDiv);
+        
+        let countdown = 5;
+        const updateCountdown = () => {
+            if (countdown > 0) {
+                countdownDiv.innerHTML = `
+                    <div>BOTS ACTIVATING IN</div>
+                    <div style="font-size: 48px; color: #ff4444; margin: 10px 0;">${countdown}</div>
+                    <div>GET READY!</div>
+                `;
+                countdown--;
+                setTimeout(updateCountdown, 1000);
+            } else {
+                countdownDiv.innerHTML = `
+                    <div style="font-size: 48px; color: #ff0000;">BOTS ACTIVE!</div>
+                    <div style="font-size: 24px; margin-top: 10px;">FIGHT FOR YOUR LIFE!</div>
+                `;
+                
+                // Activate bots
+                this.botsAreActive = true;
+                console.log('Bots are now active and dangerous!');
+                
+                // Remove countdown after 2 seconds
+                setTimeout(() => {
+                    if (countdownDiv.parentNode) {
+                        countdownDiv.parentNode.removeChild(countdownDiv);
+                    }
+                }, 2000);
+            }
+        };
+        
+        updateCountdown();
+    }
+    
+    startContinuousFiring() {
+        if (this.isShooting) return; // Already firing
+        
+        this.isShooting = true;
+        console.log('Starting continuous firing');
+        
+        // Fire immediately
+        this.shoot();
+        
+        // Set up interval for continuous firing
+        this.shootInterval = setInterval(() => {
+            if (this.isShooting && this.canShoot) {
+                this.shoot();
+            }
+        }, this.rapidFireCooldown);
+    }
+    
+    stopContinuousFiring() {
+        if (!this.isShooting) return; // Not firing
+        
+        this.isShooting = false;
+        console.log('Stopping continuous firing');
+        
+        // Clear the firing interval
+        if (this.shootInterval) {
+            clearInterval(this.shootInterval);
+            this.shootInterval = null;
+        }
     }
 }
 
