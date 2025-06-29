@@ -1,0 +1,440 @@
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #000;
+  font-family: 'Arial', sans-serif;
+}
+
+#game-canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Map Selector */
+#map-selector {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  transition: opacity 0.5s ease-out;
+}
+
+#map-selector.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.map-selector-content {
+  text-align: center;
+  color: #fff;
+  max-width: 1200px;
+  padding: 20px;
+}
+
+.game-title {
+  font-size: 4em;
+  margin-bottom: 0.5em;
+  text-shadow: 0 0 30px #4a9eff;
+  animation: glow 3s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  from { text-shadow: 0 0 30px #4a9eff; }
+  to { text-shadow: 0 0 40px #4a9eff, 0 0 50px #00d4ff; }
+}
+
+.selector-subtitle {
+  font-size: 1.5em;
+  margin-bottom: 2em;
+  color: #ccc;
+  text-shadow: 0 0 10px #4a9eff;
+}
+
+.maps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 2em;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.map-card {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  backdrop-filter: blur(10px);
+}
+
+.map-card:hover {
+  transform: translateY(-5px);
+  border-color: #4a9eff;
+  box-shadow: 0 10px 30px rgba(74, 158, 255, 0.3);
+}
+
+.map-card.selected {
+  border-color: #00d4ff;
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+  transform: scale(1.05);
+}
+
+.map-preview {
+  height: 150px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.map-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  padding: 20px;
+  text-align: center;
+}
+
+.map-overlay h3 {
+  margin: 0 0 5px 0;
+  font-size: 1.2em;
+  color: #fff;
+}
+
+.map-overlay p {
+  margin: 0;
+  font-size: 0.9em;
+  color: #ccc;
+}
+
+/* Map Preview Backgrounds */
+.nebula-preview {
+  background: linear-gradient(45deg, #4a9eff, #8b5cf6, #ec4899);
+  background-size: 400% 400%;
+  animation: gradientShift 4s ease infinite;
+}
+
+.asteroid-preview {
+  background: linear-gradient(45deg, #6b7280, #374151, #1f2937);
+  background-size: 400% 400%;
+  animation: gradientShift 4s ease infinite;
+}
+
+.planetary-preview {
+  background: linear-gradient(45deg, #f59e0b, #ef4444, #8b5cf6);
+  background-size: 400% 400%;
+  animation: gradientShift 4s ease infinite;
+}
+
+.void-preview {
+  background: linear-gradient(45deg, #000000, #1f2937, #374151);
+  background-size: 400% 400%;
+  animation: gradientShift 4s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.map-info {
+  margin-bottom: 2em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.selected-map-info {
+  flex: 1;
+  text-align: left;
+}
+
+.selected-map-info h3 {
+  font-size: 1.8em;
+  margin-bottom: 0.5em;
+  color: #4a9eff;
+  text-shadow: 0 0 10px #4a9eff;
+}
+
+.selected-map-info p {
+  font-size: 1.1em;
+  color: #ccc;
+  max-width: 600px;
+  margin: 0;
+}
+
+.start-btn {
+  background: linear-gradient(45deg, #4a9eff, #00d4ff);
+  border: none;
+  padding: 15px 40px;
+  font-size: 1.2em;
+  color: white;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  font-weight: bold;
+  letter-spacing: 1px;
+  box-shadow: 0 5px 15px rgba(74, 158, 255, 0.3);
+  margin-left: 20px;
+}
+
+.start-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(74, 158, 255, 0.4);
+}
+
+.start-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #666;
+}
+
+/* Loading Screen */
+#loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  transition: opacity 0.5s ease-out;
+}
+
+#loading-screen.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-content {
+  text-align: center;
+  color: #fff;
+}
+
+.loading-content h2 {
+  font-size: 2.5em;
+  margin-bottom: 2em;
+  text-shadow: 0 0 20px #4a9eff;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.loading-bar {
+  width: 300px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  margin: 0 auto 1em;
+  overflow: hidden;
+}
+
+.loading-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #4a9eff, #00d4ff);
+  width: 0%;
+  transition: width 0.3s ease;
+  border-radius: 2px;
+}
+
+#loading-text {
+  font-size: 1.2em;
+  color: #ccc;
+  margin: 0;
+}
+
+/* HUD */
+#hud {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 100;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+}
+
+#health-bar {
+  width: 200px;
+  height: 20px;
+  background: rgba(255, 0, 0, 0.3);
+  border: 2px solid #ff0000;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+#health-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff0000, #ff4444);
+  width: 100%;
+  transition: width 0.3s ease;
+}
+
+#ammo-counter {
+  font-size: 1.2em;
+  color: #4a9eff;
+  text-shadow: 0 0 10px #4a9eff;
+}
+
+/* Crosshair */
+.crosshair {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.crosshair::before,
+.crosshair::after {
+  content: '';
+  position: absolute;
+  background: #4a9eff;
+  box-shadow: 0 0 10px #4a9eff;
+}
+
+.crosshair::before {
+  width: 2px;
+  height: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.crosshair::after {
+  width: 20px;
+  height: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Instructions */
+#instructions {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  color: #ccc;
+  font-size: 0.9em;
+  z-index: 100;
+}
+
+#instructions h3 {
+  margin: 0 0 10px 0;
+  color: #4a9eff;
+}
+
+#instructions ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+#instructions li {
+  margin: 5px 0;
+}
+
+/* Game Menu */
+.game-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+}
+
+.game-menu.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.menu-content {
+  background: rgba(26, 26, 46, 0.95);
+  border: 2px solid #4a9eff;
+  border-radius: 20px;
+  padding: 40px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 15px 35px rgba(74, 158, 255, 0.3);
+  backdrop-filter: blur(10px);
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.game-menu.show .menu-content {
+  transform: scale(1);
+}
+
+.menu-content h2 {
+  font-size: 2.5em;
+  margin-bottom: 30px;
+  color: #4a9eff;
+  text-shadow: 0 0 20px #4a9eff;
+  animation: glow 3s ease-in-out infinite alternate;
+}
+
+.menu-options {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.menu-btn {
+  background: linear-gradient(45deg, #4a9eff, #00d4ff);
+  border: none;
+  padding: 15px 30px;
+  font-size: 1.1em;
+  color: white;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  font-weight: bold;
+  letter-spacing: 1px;
+  box-shadow: 0 5px 15px rgba(74, 158, 255, 0.3);
+  min-width: 200px;
+}
+
+.menu-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(74, 158, 255, 0.4);
+  background: linear-gradient(45deg, #00d4ff, #4a9eff);
+}
+
+.menu-btn:active {
+  transform: translateY(-1px);
+} 

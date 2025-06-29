@@ -1,0 +1,17 @@
+{
+  "name": "my-3d-arena-shooter",
+  "version": "1.0.0",
+  "description": "3D Space Arena Shooter Game",
+  "scripts": {
+    "start": "http-server frontend -p 3000 -c-1",
+    "dev": "http-server frontend -p 3000 -c-1 -o",
+    "build": "echo 'No build step needed for vanilla JS'"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "keywords": ["game", "threejs", "3d", "shooter"],
+  "author": "",
+  "license": "MIT"
+}

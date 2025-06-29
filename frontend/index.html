@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Space Arena Shooter</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+  
+  <!-- Map Selector Screen (COMMENTED OUT - can be restored later) -->
+  <!--
+  <div id="map-selector">
+    <div class="map-selector-content">
+      <h1 class="game-title">Space Arena Shooter</h1>
+      <h2 class="selector-subtitle">Choose Your Battlefield</h2>
+      
+      <div class="maps-grid">
+        <div class="map-card" data-map="nebula">
+          <div class="map-preview nebula-preview">
+            <div class="map-overlay">
+              <h3>Nebula Fields</h3>
+              <p>Cosmic clouds and distant stars</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="map-card" data-map="asteroid">
+          <div class="map-preview asteroid-preview">
+            <div class="map-overlay">
+              <h3>Asteroid Belt</h3>
+              <p>Dense asteroid field with debris</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="map-card" data-map="planetary">
+          <div class="map-preview planetary-preview">
+            <div class="map-overlay">
+              <h3>Planetary Rings</h3>
+              <p>Orbiting around a massive planet</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="map-card" data-map="void">
+          <div class="map-preview void-preview">
+            <div class="map-overlay">
+              <h3>Deep Void</h3>
+              <p>Infinite darkness with distant galaxies</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="map-info">
+        <div class="selected-map-info">
+          <h3 id="selected-map-name">Select a map to begin</h3>
+          <p id="selected-map-description">Click on any map above to see details</p>
+        </div>
+      </div>
+      
+      <button id="start-game-btn" class="start-btn" disabled>Start Game</button>
+    </div>
+  </div>
+  -->
+  
+  <div id="loading-screen">
+    <div class="loading-content">
+      <h2>Loading Space Arena...</h2>
+      <div class="loading-bar">
+        <div class="loading-progress"></div>
+      </div>
+      <p id="loading-text">Initializing...</p>
+    </div>
+  </div>
+  <div id="hud">
+    <div id="health-bar">
+      <div id="health-fill"></div>
+    </div>
+    <div id="ammo-counter">Ammo: ∞</div>
+  </div>
+  
+  <!-- Crosshair -->
+  <div class="crosshair"></div>
+  
+  <!-- Instructions -->
+  <div id="instructions">
+    <h3>Controls:</h3>
+    <ul>
+      <li>WASD - Move horizontally (with physics-based movement)</li>
+      <li>Q/E - Move up/down vertically</li>
+      <li>Mouse - Look around (natural sensitivity)</li>
+      <li>Space/Click - Shoot (with visual feedback)</li>
+      <li>Click to lock mouse pointer</li>
+      <li>Ctrl - Open/Close Game Menu</li>
+    </ul>
+    <p style="margin-top: 10px; font-size: 0.8em; color: #888;">
+      Choose from 4 different space environments at the start!<br>
+      Game automatically goes fullscreen when you start.
+    </p>
+    <!-- Temporary test button -->
+    <button id="test-menu-btn" style="margin-top: 10px; padding: 5px 10px; background: #4a9eff; color: white; border: none; border-radius: 5px; cursor: pointer;">Test Menu</button>
+  </div>
+  
+  <!-- Game Menu -->
+  <div id="game-menu" class="game-menu">
+    <div class="menu-content">
+      <h2>Game Menu</h2>
+      <div class="menu-options">
+        <button id="resume-btn" class="menu-btn">Resume Game</button>
+        <button id="restart-btn" class="menu-btn">Restart Game</button>
+        <button id="exit-btn" class="menu-btn">Exit to Menu</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Three.js and dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="main.js"></script>
+</body>
+</html> 
