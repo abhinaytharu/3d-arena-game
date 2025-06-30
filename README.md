@@ -33,6 +33,19 @@ Choose from 4 unique space battlefields:
    - Minimal cover for fast-paced combat
    - Sparse asteroid field for open battles
 
+## 📸 Screenshots
+
+### Game Screenshots
+![Gameplay](screenshots/Gameplay.png)
+*Intense 3D space combat gameplay showing the player's spaceship in action*
+
+### UI Screenshots
+![Menu](screenshots/Menu.png)
+*Game menu interface with options for resuming, restarting, or exiting the game*
+
+![Instructions](screenshots/Instructions.png)
+*Comprehensive instructions popup showing game controls, gameplay tips, and how to play*
+
 ## 🚀 Complete Setup Guide
 
 ### Prerequisites
