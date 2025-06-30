@@ -94,6 +94,12 @@ npm run dev
 
 The game will automatically open in your browser at `http://localhost:3000`
 
+**Alternative: Direct GitHub Pages Setup**
+Since the main files are now in the root directory, you can also:
+1. Push to GitHub
+2. Enable GitHub Pages in repository settings
+3. Your game will be live at `https://yourusername.github.io/my-3d-arena-shooter/`
+
 ### Step 6: Start Backend Server (Optional - for Multiplayer)
 Open a new terminal window and run:
 ```bash
@@ -181,18 +187,19 @@ npm update
 ## 📁 Project Structure
 ```
 my-3d-arena-shooter/
-├── frontend/           # Frontend game files
-│   ├── index.html     # Main HTML file
-│   ├── main.js        # Game logic and Three.js code
-│   └── style.css      # Styling and animations
+├── index.html         # Main HTML file (for GitHub Pages)
+├── frontend/          # Frontend game files
+│   ├── main.js       # Game logic and Three.js code
+│   └── style.css     # Styling and animations
+├── screenshots/       # Game screenshots for README
 ├── backend/           # Backend server files
-│   ├── server.py      # Flask server with WebSocket
-│   ├── game_logic.py  # Game logic and C++ bindings
+│   ├── server.py     # Flask server with WebSocket
+│   ├── game_logic.py # Game logic and C++ bindings
 │   └── requirements.txt # Python dependencies
-├── cpp/               # C++ game logic (optional)
-│   ├── cpp_logic.cpp  # C++ implementation
+├── cpp/              # C++ game logic (optional)
+│   ├── cpp_logic.cpp # C++ implementation
 │   └── CMakeLists.txt # Build configuration
-└── package.json       # Node.js dependencies
+└── package.json      # Node.js dependencies
 ```
 
 ## 🤝 Contributing
