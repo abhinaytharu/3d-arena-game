@@ -128,6 +128,12 @@ body {
   animation: gradientShift 4s ease infinite;
 }
 
+.crystal-cave-preview {
+  background: linear-gradient(45deg, #00ffff, #ff00ff, #0a0a1a);
+  background-size: 400% 400%;
+  animation: gradientShift 4s ease infinite;
+}
+
 .asteroid-preview {
   background: linear-gradient(45deg, #6b7280, #374151, #1f2937);
   background-size: 400% 400%;

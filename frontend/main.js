@@ -60,120 +60,25 @@ class SpaceArena {
         this.totalAssets = 0;
         this.loadedAssets = 0;
         
-        this.init();
+        // Initialize basic setup and show map selector
+        this.setupBasicEnvironment();
+        this.setupMapSelector();
     }
     
-    // MAP SELECTOR METHODS (COMMENTED OUT - can be restored later)
-    /*
-    setupMapSelector() {
-        const mapCards = document.querySelectorAll('.map-card');
-        const startBtn = document.getElementById('start-game-btn');
-        const selectedMapName = document.getElementById('selected-map-name');
-        const selectedMapDesc = document.getElementById('selected-map-description');
-        
-        // Map descriptions
-        const mapDescriptions = {
-            nebula: {
-                name: 'Nebula Fields',
-                description: 'Fight among colorful cosmic clouds and distant stars. The nebula provides cover and creates a mystical atmosphere for intense space battles.'
-            },
-            asteroid: {
-                name: 'Asteroid Belt',
-                description: 'Navigate through a dense field of asteroids and space debris. Use the rocks as cover and watch out for floating obstacles.'
-            },
-            planetary: {
-                name: 'Planetary Rings',
-                description: 'Battle around a massive planet with spectacular rings. The gravitational pull affects movement and creates unique tactical opportunities.'
-            },
-            void: {
-                name: 'Deep Void',
-                description: 'Face the infinite darkness of space with distant galaxies as your backdrop. Minimal cover makes for intense, fast-paced combat.'
-            }
-        };
-        
-        mapCards.forEach(card => {
-            card.addEventListener('click', () => {
-                // Remove previous selection
-                mapCards.forEach(c => c.classList.remove('selected'));
-                
-                // Select current card
-                card.classList.add('selected');
-                
-                // Update selected map
-                this.selectedMap = card.dataset.map;
-                console.log('Map selected:', this.selectedMap);
-                
-                // Update info
-                const mapInfo = mapDescriptions[this.selectedMap];
-                selectedMapName.textContent = mapInfo.name;
-                selectedMapDesc.textContent = mapInfo.description;
-                
-                // Enable start button
-                startBtn.disabled = false;
-            });
-        });
-        
-        startBtn.addEventListener('click', () => {
-            console.log('Starting game with map:', this.selectedMap);
-            this.hideMapSelector();
-            
-            // Request fullscreen
-            this.requestFullscreen();
-            
-            this.init();
-        });
-        
-        // Auto-select first map
-        mapCards[0].click();
-    }
-    
-    hideMapSelector() {
-        console.log('Hiding map selector...');
-        const mapSelector = document.getElementById('map-selector');
-        if (mapSelector) {
-            mapSelector.classList.add('hidden');
-            setTimeout(() => {
-                mapSelector.style.display = 'none';
-                console.log('Map selector hidden');
-            }, 500);
-        } else {
-            console.error('Map selector element not found!');
-        }
-    }
-    
-    requestFullscreen() {
-        const canvas = this.canvas;
-        
-        // Cross-browser fullscreen support
-        if (canvas.requestFullscreen) {
-            canvas.requestFullscreen();
-        } else if (canvas.webkitRequestFullscreen) { // Safari
-            canvas.webkitRequestFullscreen();
-        } else if (canvas.msRequestFullscreen) { // IE/Edge
-            canvas.msRequestFullscreen();
-        } else if (canvas.mozRequestFullScreen) { // Firefox
-            canvas.mozRequestFullScreen();
-        }
-        
-        // Update renderer size after fullscreen
-        setTimeout(() => {
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
-            this.camera.aspect = window.innerWidth / window.innerHeight;
-            this.camera.updateProjectionMatrix();
-        }, 100);
-    }
-    */
-    
-    init() {
-        console.log('Game initialization started...');
+    setupBasicEnvironment() {
+        // Setup basic Three.js environment without creating the game world
         this.setupLoadingManager();
         this.createStarryBackground();
         this.setupLighting();
-        this.createSpaceEnvironment();
         this.setupControls();
         this.setupWebSocket();
         this.setupGameMenu();
         this.setupInstructionsPopup();
+    }
+    
+    initGame() {
+        console.log('Game initialization started...');
+        this.createSpaceEnvironment();
         this.animate();
         
         // Hide loading screen after initialization is complete
@@ -303,15 +208,18 @@ class SpaceArena {
     }
     
     createSpaceEnvironment() {
-        console.log('Creating basic space environment...');
+        console.log('Creating space environment for map:', this.selectedMap);
         
-        // Create nebula clouds
-        this.createNebulaClouds();
+        // Load the appropriate map based on selection
+        if (this.selectedMap === 'crystal-cave') {
+            this.createCrystalCaveMap();
+        } else {
+            // Default to nebula map
+            this.createNebulaClouds();
+            this.createDistantPlanet();
+        }
         
-        // Create distant planet
-        this.createDistantPlanet();
-        
-        // Create asteroids
+        // Create asteroids (common to all maps)
         this.createAsteroids(15);
         
         // Create AI bots
@@ -355,6 +263,229 @@ class SpaceArena {
             };
             animateNebula();
         }
+    }
+    
+    createCrystalCaveMap() {
+        console.log('Creating Crystal Cave environment...');
+        
+        // Create crystal cave background
+        this.createCrystalCaveBackground();
+        
+        // Create floating crystals
+        this.createFloatingCrystals();
+        
+        // Create cave walls
+        this.createCaveWalls();
+        
+        // Create ambient glow effects
+        this.createCrystalGlowEffects();
+        
+        console.log('Crystal Cave environment created successfully');
+    }
+    
+    createCrystalCaveBackground() {
+        // Create a dark cave background with subtle patterns
+        const caveGeometry = new THREE.SphereGeometry(500, 64, 64);
+        const caveMaterial = new THREE.MeshBasicMaterial({
+            color: 0x0a0a1a,
+            transparent: true,
+            opacity: 0.8
+        });
+        const caveBackground = new THREE.Mesh(caveGeometry, caveMaterial);
+        this.scene.add(caveBackground);
+        
+        // Add subtle cave texture with noise
+        for (let i = 0; i < 50; i++) {
+            const spotGeometry = new THREE.SphereGeometry(5 + Math.random() * 10, 8, 8);
+            const spotMaterial = new THREE.MeshBasicMaterial({
+                color: 0x1a1a3a,
+                transparent: true,
+                opacity: 0.3
+            });
+            const spot = new THREE.Mesh(spotGeometry, spotMaterial);
+            
+            // Random position on cave surface
+            const angle = Math.random() * Math.PI * 2;
+            const height = (Math.random() - 0.5) * 2;
+            const radius = 480 + Math.random() * 20;
+            
+            spot.position.set(
+                Math.cos(angle) * radius,
+                height * radius,
+                Math.sin(angle) * radius
+            );
+            
+            this.scene.add(spot);
+        }
+    }
+    
+    createFloatingCrystals() {
+        const crystalColors = [0x00ffff, 0xff00ff, 0xffff00, 0x00ff00, 0xff0080];
+        
+        for (let i = 0; i < 20; i++) {
+            const crystal = this.createCrystal(
+                crystalColors[i % crystalColors.length],
+                10 + Math.random() * 20,
+                5 + Math.random() * 10
+            );
+            
+            // Random position in cave
+            crystal.position.set(
+                (Math.random() - 0.5) * 300,
+                (Math.random() - 0.5) * 300,
+                (Math.random() - 0.5) * 300
+            );
+            
+            // Random rotation
+            crystal.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+            
+            // Add floating animation
+            crystal.userData.floatOffset = Math.random() * Math.PI * 2;
+            crystal.userData.floatSpeed = 0.5 + Math.random() * 0.5;
+            crystal.userData.rotationSpeed = {
+                x: (Math.random() - 0.5) * 0.02,
+                y: (Math.random() - 0.5) * 0.02,
+                z: (Math.random() - 0.5) * 0.02
+            };
+            
+            this.scene.add(crystal);
+            
+            // Animate crystal
+            const animateCrystal = () => {
+                const time = Date.now() * 0.001;
+                crystal.position.y += Math.sin(time * crystal.userData.floatSpeed + crystal.userData.floatOffset) * 0.1;
+                crystal.rotation.x += crystal.userData.rotationSpeed.x;
+                crystal.rotation.y += crystal.userData.rotationSpeed.y;
+                crystal.rotation.z += crystal.userData.rotationSpeed.z;
+                requestAnimationFrame(animateCrystal);
+            };
+            animateCrystal();
+        }
+    }
+    
+    createCrystal(color, height, width) {
+        const group = new THREE.Group();
+        
+        // Create crystal geometry (octahedron for diamond-like shape)
+        const crystalGeometry = new THREE.OctahedronGeometry(width, 0);
+        const crystalMaterial = new THREE.MeshPhongMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.8,
+            shininess: 100,
+            specular: 0xffffff
+        });
+        const crystal = new THREE.Mesh(crystalGeometry, crystalMaterial);
+        
+        // Scale to make it taller
+        crystal.scale.set(1, height / width, 1);
+        group.add(crystal);
+        
+        // Add inner glow
+        const innerGeometry = new THREE.OctahedronGeometry(width * 0.7, 0);
+        const innerMaterial = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.3
+        });
+        const innerGlow = new THREE.Mesh(innerGeometry, innerMaterial);
+        innerGlow.scale.set(1, height / width, 1);
+        group.add(innerGlow);
+        
+        return group;
+    }
+    
+    createCaveWalls() {
+        // Create stalactites and stalagmites
+        for (let i = 0; i < 15; i++) {
+            // Stalactites (hanging from ceiling)
+            const stalactite = this.createStalactite();
+            stalactite.position.set(
+                (Math.random() - 0.5) * 400,
+                200 + Math.random() * 50,
+                (Math.random() - 0.5) * 400
+            );
+            this.scene.add(stalactite);
+            
+            // Stalagmites (growing from floor)
+            const stalagmite = this.createStalagmite();
+            stalagmite.position.set(
+                (Math.random() - 0.5) * 400,
+                -200 - Math.random() * 50,
+                (Math.random() - 0.5) * 400
+            );
+            this.scene.add(stalagmite);
+        }
+    }
+    
+    createStalactite() {
+        const group = new THREE.Group();
+        
+        // Create cone geometry for stalactite
+        const geometry = new THREE.ConeGeometry(5, 30 + Math.random() * 20, 8);
+        const material = new THREE.MeshPhongMaterial({
+            color: 0x444444,
+            shininess: 50
+        });
+        const stalactite = new THREE.Mesh(geometry, material);
+        
+        // Rotate to point downward
+        stalactite.rotation.x = Math.PI;
+        group.add(stalactite);
+        
+        return group;
+    }
+    
+    createStalagmite() {
+        const group = new THREE.Group();
+        
+        // Create cone geometry for stalagmite
+        const geometry = new THREE.ConeGeometry(5, 30 + Math.random() * 20, 8);
+        const material = new THREE.MeshPhongMaterial({
+            color: 0x444444,
+            shininess: 50
+        });
+        const stalagmite = new THREE.Mesh(geometry, material);
+        
+        group.add(stalagmite);
+        
+        return group;
+    }
+    
+    createCrystalGlowEffects() {
+        // Add point lights for ambient glow
+        const glowColors = [0x00ffff, 0xff00ff, 0xffff00, 0x00ff00];
+        
+        for (let i = 0; i < 8; i++) {
+            const light = new THREE.PointLight(
+                glowColors[i % glowColors.length],
+                0.3 + Math.random() * 0.4,
+                100 + Math.random() * 100
+            );
+            
+            light.position.set(
+                (Math.random() - 0.5) * 300,
+                (Math.random() - 0.5) * 300,
+                (Math.random() - 0.5) * 300
+            );
+            
+            this.scene.add(light);
+            
+            // Animate light intensity
+            const animateLight = () => {
+                const time = Date.now() * 0.001;
+                light.intensity = 0.3 + Math.sin(time + i) * 0.2;
+                requestAnimationFrame(animateLight);
+            };
+            animateLight();
+        }
+        
+        // Add fog for atmosphere
+        this.scene.fog = new THREE.Fog(0x0a0a1a, 100, 400);
     }
     
     createDistantPlanet() {
@@ -1936,6 +2067,93 @@ class SpaceArena {
             clearInterval(this.shootInterval);
             this.shootInterval = null;
         }
+    }
+    
+    setupMapSelector() {
+        const mapCards = document.querySelectorAll('.map-card');
+        const startBtn = document.getElementById('start-game-btn');
+        const selectedMapName = document.getElementById('selected-map-name');
+        const selectedMapDesc = document.getElementById('selected-map-description');
+        
+        // Map descriptions
+        const mapDescriptions = {
+            nebula: {
+                name: 'Nebula Fields',
+                description: 'Fight among colorful cosmic clouds and distant stars. The nebula provides cover and creates a mystical atmosphere for intense space battles.'
+            },
+            'crystal-cave': {
+                name: 'Crystal Cave',
+                description: 'Navigate through a mysterious cave filled with glowing crystals. The crystalline structures provide unique cover and create an otherworldly atmosphere for intense combat.'
+            }
+        };
+        
+        mapCards.forEach(card => {
+            card.addEventListener('click', () => {
+                // Remove previous selection
+                mapCards.forEach(c => c.classList.remove('selected'));
+                
+                // Select current card
+                card.classList.add('selected');
+                
+                // Update selected map
+                this.selectedMap = card.dataset.map;
+                console.log('Map selected:', this.selectedMap);
+                
+                // Update info
+                const mapInfo = mapDescriptions[this.selectedMap];
+                selectedMapName.textContent = mapInfo.name;
+                selectedMapDesc.textContent = mapInfo.description;
+                
+                // Enable start button
+                startBtn.disabled = false;
+            });
+        });
+        
+        startBtn.addEventListener('click', () => {
+            console.log('Starting game with map:', this.selectedMap);
+            this.hideMapSelector();
+            
+            this.initGame();
+        });
+        
+        // Auto-select first map
+        mapCards[0].click();
+    }
+    
+    hideMapSelector() {
+        console.log('Hiding map selector...');
+        const mapSelector = document.getElementById('map-selector');
+        if (mapSelector) {
+            mapSelector.classList.add('hidden');
+            setTimeout(() => {
+                mapSelector.style.display = 'none';
+                console.log('Map selector hidden');
+            }, 500);
+        } else {
+            console.error('Map selector element not found!');
+        }
+    }
+    
+    requestFullscreen() {
+        const canvas = this.canvas;
+        
+        // Cross-browser fullscreen support
+        if (canvas.requestFullscreen) {
+            canvas.requestFullscreen();
+        } else if (canvas.webkitRequestFullscreen) { // Safari
+            canvas.webkitRequestFullscreen();
+        } else if (canvas.msRequestFullscreen) { // IE/Edge
+            canvas.msRequestFullscreen();
+        } else if (canvas.mozRequestFullScreen) { // Firefox
+            canvas.mozRequestFullScreen();
+        }
+        
+        // Update renderer size after fullscreen
+        setTimeout(() => {
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+        }, 100);
     }
 }
 
