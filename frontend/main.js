@@ -1574,21 +1574,21 @@ class SpaceArena {
             });
         }
         
-        // Restart button
-        if (restartBtn) {
-            restartBtn.addEventListener('click', (event) => {
-                event.stopPropagation();
-                this.restartGame();
-            });
-        }
-        
-        // Exit button
-        if (exitBtn) {
-            exitBtn.addEventListener('click', (event) => {
-                event.stopPropagation();
-                this.exitToMenu();
-            });
-        }
+            // Restart button
+    if (restartBtn) {
+        restartBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            window.location.reload();
+        });
+    }
+    
+    // Exit button
+    if (exitBtn) {
+        exitBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            window.location.reload();
+        });
+    }
         
         console.log('Game menu setup complete');
     }
